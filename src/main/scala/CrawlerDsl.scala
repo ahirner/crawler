@@ -190,7 +190,8 @@ class InputProcessor(c: Crawler, dType: DiscriminatorType)
         parentElement.asInstanceOf[HtmlElement]
                      .getPage
                      .asInstanceOf[HtmlPage]
-                     .getElementById[HtmlInput](dt.id, false) 
+                     .getElementById(dt.id)
+                     .asInstanceOf[HtmlInput]
       }
       case dt: xPath => { 
         parentElement.getFirstByXPath[HtmlInput](dt.xPath) 
@@ -314,13 +315,12 @@ trait CrawlObserver {
  * starting point for navigation, and it also provides most of the tokens
  * that are part of the crawler DSL.
  */
-abstract class Crawler( version: BrowserVersion = BrowserVersion.FIREFOX_24
+abstract class Crawler( version: BrowserVersion = BrowserVersion.CHROME
                       , failOnJSError: Boolean = false
                       , javaScriptEnabled: Boolean = true
                       , throwExceptionOnFailingStatusCode: Boolean = false
                       , cssEnabled: Boolean = false
                       , useInsecureSSL: Boolean = true
-                      , dumpPreProcessedJavaScript: Boolean = false
                       ) extends ElementProcessor with CrawlObserver
 {
  /**
@@ -345,16 +345,8 @@ abstract class Crawler( version: BrowserVersion = BrowserVersion.FIREFOX_24
   if (! cssEnabled) {
     client.setCssErrorHandler(new SilentCssErrorHandler())
   }
-  val actualScriptPreProcessor = client.getScriptPreProcessor
-  lazy val debugScriptPreProcessor = new ScriptPreProcessor() {
-    def preProcess(htmlPage: HtmlPage, sourceCode: String, sourceName: String, lineNumber: Int, htmlElement: HtmlElement) = {
-      System.out.println(s"** preProcessing script: name <$sourceName> code <$sourceCode>")
-      actualScriptPreProcessor.preProcess(htmlPage, sourceCode, sourceName, lineNumber, htmlElement);
-    }
-  }
-  if(dumpPreProcessedJavaScript) {
-    client.setScriptPreProcessor(debugScriptPreProcessor)
-  }
+  // seems like ScriptPreProcessor was deprecated between 2.15 and 2.21
+  // got rid of this option
 
   protected var config = collection.mutable.Map[String, Any]();
  
@@ -445,7 +437,7 @@ abstract class Crawler( version: BrowserVersion = BrowserVersion.FIREFOX_24
 
   override def doCrawl() {
     crawl()
-    client.closeAllWindows()
+    client.close()
   }
 
  /**
